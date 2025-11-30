@@ -308,7 +308,49 @@ jobs:
           cd ./common
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
 
+      - name: 🎮 Apply GameSense patches
+        run: |
+          echo "正在下载并应用 GameSense v3.0 补丁..."
+          (
+            cd kernel_workspace/common
+            
+            # 从私有仓库下载 GameSense 补丁文件（使用 token 认证）
+            mkdir -p /tmp/gamesense
+            curl -LSs -H "Authorization: token ${{ secrets.Patch_TOKEN }}" \
+              "https://raw.githubusercontent.com/Ray170910/gamesense-ksu-module/main/patch/my_mem.patch" \
+              -o /tmp/gamesense/my_mem.patch
+            curl -LSs -H "Authorization: token ${{ secrets.Patch_TOKEN }}" \
+              "https://raw.githubusercontent.com/Ray170910/gamesense-ksu-module/main/patch/my_vmalloc.patch" \
+              -o /tmp/gamesense/my_vmalloc.patch
+            curl -LSs -H "Authorization: token ${{ secrets.Patch_TOKEN }}" \
+              "https://raw.githubusercontent.com/Ray170910/gamesense-ksu-module/main/patch/my_base.patch" \
+              -o /tmp/gamesense/my_base.patch
+            curl -LSs -H "Authorization: token ${{ secrets.Patch_TOKEN }}" \
+              "https://raw.githubusercontent.com/Ray170910/gamesense-ksu-module/main/patch/my_audit.patch" \
+              -o /tmp/gamesense/my_audit.patch
+            
+            if [ -f "/tmp/gamesense/my_mem.patch" ]; then
+              echo "[GameSense] 应用 mem.c 补丁..."
+              patch -p1 < /tmp/gamesense/my_mem.patch || patch -p1 --fuzz=3 < /tmp/gamesense/my_mem.patch || true
+            fi
+            
+            if [ -f "/tmp/gamesense/my_vmalloc.patch" ]; then
+              echo "[GameSense] 应用 vmalloc.c 补丁..."
+              patch -p1 < /tmp/gamesense/my_vmalloc.patch || patch -p1 --fuzz=3 < /tmp/gamesense/my_vmalloc.patch || true
+            fi
 
+            if [ -f "/tmp/gamesense/my_base.patch" ]; then
+              echo "[GameSense] 应用 base.c 补丁..."
+              patch -p1 < /tmp/gamesense/my_base.patch || patch -p1 --fuzz=3 < /tmp/gamesense/my_base.patch || true
+            fi
+
+            if [ -f "/tmp/gamesense/my_audit.patch" ]; then
+              echo "[GameSense] 应用 audit.c 补丁..."
+              patch -p1 < /tmp/gamesense/my_audit.patch || patch -p1 --fuzz=3 < /tmp/gamesense/my_audit.patch || true
+            fi
+          )
+          
+          echo "✅ GameSense 补丁应用完成"
 
           
       - name: 🔧 Set gki_defconfig (设置编译配置) 
@@ -489,3 +531,9 @@ jobs:
         with:
          name: AK3_${{ env.KSUVER }}_${{ env.DEVICES_NAME }}_SuKiSU
          path: ./AnyKernel3/*
+
+      - name: 📤 Upload Kernel Image (上传内核镜像)
+        uses: actions/upload-artifact@v4
+        with:
+         name: Image_${{ env.KSUVER }}_${{ env.DEVICES_NAME }}_SuKiSU
+         path: kernel_workspace/kernel_platform/common/out/arch/arm64/boot/Image
