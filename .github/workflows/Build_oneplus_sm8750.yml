@@ -47,11 +47,11 @@ on:
         default: true
         type: boolean
 
-      enable_feature_c:
-        description: "开启SUSFS(用于增强隐藏环境挂载功能; 可能轻微增加耗电，上游更新导致不稳定时或不需要可关闭)"
-        required: false
-        default: true
-        type: boolean
+      # enable_feature_c:
+      #   description: "开启SUSFS(用于增强隐藏环境挂载功能; 可能轻微增加耗电，上游更新导致不稳定时或不需要可关闭)"
+      #   required: false
+      #   default: true
+      #   type: boolean
 
       enable_feature_b:
          description: "选择网络调度"
@@ -295,7 +295,7 @@ jobs:
 
             
       - name: 🔧 Set up SUSFS (配置 SUSFS)
-        if: ${{ env.ENABLE_FEATURE_C == 'true' }}
+        # if: ${{ env.ENABLE_FEATURE_C == 'true' }}
         run: |
           cd kernel_workspace
           echo "正在添加SukiSU Ultra补丁..."
@@ -429,11 +429,11 @@ jobs:
           
       - name: 🔧 Apply Sched Patch (应用完美风驰补丁)
         run: |
-          if [ "$SCHED_FILE" = "none" ]; then
-            echo "该机型自带风驰，跳过应用补丁"
-          else
-            cd kernel_workspace/common
-            if [ "${{ env.ENABLE_FEATURE_Z }}" = "true" ]; then
+          if [ "${{ env.ENABLE_FEATURE_Z }}" = "true" ]; then
+            if [ "$SCHED_FILE" = "none" ]; then
+              echo "该机型自带风驰，跳过应用补丁"
+            else
+              cd kernel_workspace/common
               if [ "${DEVICES_NAME}" = "oneplus_ace5_ultra" ] || [ "${DEVICES_NAME}" = "realme_GT7" ]; then
                 git clone https://github.com/Numbersf/SCHED_PATCH.git -b "mt6991"
               else
@@ -450,14 +450,14 @@ jobs:
                 echo "❌ 未匹配到补丁，风驰补丁暂未支持该机型"
                 exit 11
               fi
-            else
-              echo "未启用风驰，则需应用OGKI转换GKI补丁"
+            fi
+          else
+            echo "未启用风驰，则需应用OGKI转换GKI补丁"
               sed -i '1iobj-y += hmbird_patch.o' drivers/Makefile
                cp "${GITHUB_WORKSPACE}/.github/workflows/Bin/hmbird_patch.patch" ./hmbird_patch.patch
               echo "正在打OGKI转换GKI补丁"
               patch -p1 -F 3 < hmbird_patch.patch
               echo "OGKI转换GKI_patch完成"
-            fi
           fi
 
       - name: 🔨 Build Kernel (构建内核)
