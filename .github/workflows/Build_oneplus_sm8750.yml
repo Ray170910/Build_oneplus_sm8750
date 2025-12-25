@@ -35,24 +35,25 @@ on:
         required: false
         default: ''
 
-      enable_feature_z:
+      enable_scx:
         description: "添加完美风驰"
         required: false
         default: true
         type: boolean
 
-      enable_feature_a:
+      enable_bbg:
         description: "开启BBG基带守护"
         required: false
         default: true
         type: boolean
+        
       enable_hymo:
         description: "添加Hymo实现(高性能混合挂载元模块)"
         required: false
         default: true
         type: boolean
 
-      enable_feature_b:
+      enable_network:
          description: "选择网络调度"
          required: false
          type: choice
@@ -73,11 +74,10 @@ jobs:
       KEEP_ORIGINAL_SETTINGS: ${{ github.event.inputs.keep_original_settings }}
       CUSTOM_KERNEL_SUFFIX:   ${{ github.event.inputs.custom_kernel_suffix }}
       CUSTOM_KERNEL_TIME:     ${{ github.event.inputs.custom_kernel_time }}
-      ENABLE_FEATURE_Z:       ${{ github.event.inputs.enable_feature_z }}
-      ENABLE_FEATURE_A:       ${{ github.event.inputs.enable_feature_a }}
-      ENABLE_FEATURE_B:       ${{ github.event.inputs.enable_feature_b }}
+      ENABLE_SCX:       ${{ github.event.inputs.enable_scx }}
+      ENABLE_BBG:       ${{ github.event.inputs.enable_bbg }}
+      ENABLE_NETWORK:       ${{ github.event.inputs.enable_network }}
       ENABLE_HYMO:            ${{ github.event.inputs.enable_hymo }}
-      ENABLE_FEATURE_C:       ${{ github.event.inputs.enable_feature_c }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -267,7 +267,7 @@ jobs:
           patch -p1 < 002-zstd.patch || true
           
       - name: 🔧 Set Baseband-guard (开启BBG基带守护)
-        if: ${{ env.ENABLE_FEATURE_A == 'true' }}
+        if: ${{ env.ENABLE_BBG == 'true' }}
         run: |
           cd kernel_workspace/common
           echo "正在启用BBG基带守护…"
@@ -279,7 +279,7 @@ jobs:
         run: |
           cd kernel_workspace
           echo "正在配置SukiSU Ultra..."
-          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/refs/heads/main/kernel/setup.sh" | bash -s builtin
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/refs/heads/main/kernel/setup.sh" | bash -s miuix
           cd ./KernelSU
           # 获取当前 Git 提交的短哈希 (8位)
           GIT_COMMIT_HASH=$(git rev-parse --short=8 HEAD)
@@ -288,7 +288,7 @@ jobs:
           # 尝试最多 3 次获取 KernelSU API 版本号
           for i in {1..3}; do
             # 从远程 Kbuild 中提取 KSU_API_VERSION
-            KSU_API_VERSION=$(curl -s "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/builtin/kernel/Kbuild" | 
+            KSU_API_VERSION=$(curl -s "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/miuix/kernel/Kbuild" | 
               # 查找第一个包含版本定义的行
               grep -m1 "KSU_VERSION_API :=" | 
               # 提取等号后的值
@@ -349,7 +349,7 @@ jobs:
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
           if [ "${{ env.ENABLE_HYMO }}" = "true" ]; then
             echo "添加Hymo-高性能混合挂载元模块"
-            wget https://raw.githubusercontent.com/Anatdx/HymoFS/refs/heads/main/patch/hymofs_with_susfs.patch
+            wget https://raw.githubusercontent.com/Anatdx/HymoFS/refs/heads/android15_6.6/patch/hymofs_with_susfs.patch
             patch -p1 -F 3 < hymofs_with_susfs.patch
             echo "CONFIG_HYMOFS=y" >> ./arch/arm64/configs/gki_defconfig
           fi
@@ -375,7 +375,7 @@ jobs:
           echo "CONFIG_ZRAM_WRITEBACK=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_SWAP=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-          if [ "${{ env.ENABLE_B }}" = "BBR" ]; then
+          if [ "${{ env.ENABLE_NETWORK }}" = "BBR" ]; then
             echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -385,7 +385,7 @@ jobs:
             echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_DEFAULT_TCP_CONG=bbr" >> ./common/arch/arm64/configs/gki_defconfig
           fi
-          if [ "${{ env.ENABLE_B }}" = "FQ_CODEL" ]; then
+          if [ "${{ env.ENABLE_NETWORK }}" = "FQ_CODEL" ]; then
             echo "CONFIG_NET_SCH_FQ_CODEL=y" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
             echo "CONFIG_NET_SCH_SFQ=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -433,7 +433,7 @@ jobs:
           
       - name: 🔧 Apply Sched Patch (应用完美风驰补丁)
         run: |
-          if [ "${{ env.ENABLE_FEATURE_Z }}" = "true" ]; then
+          if [ "${{ env.ENABLE_SCX }}" = "true" ]; then
             if [ "$SCHED_FILE" = "none" ]; then
               echo "该机型自带风驰，跳过应用补丁"
             else
