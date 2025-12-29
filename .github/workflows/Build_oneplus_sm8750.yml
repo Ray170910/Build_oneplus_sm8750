@@ -467,7 +467,7 @@ jobs:
         run: |
           echo "正在下载并应用 GameSense v3.0 补丁..."
           (
-            cd "$CONFIG/common"
+            cd kernel_workspace/common
             
             # 从私有仓库下载 GameSense 补丁文件（使用 token 认证）
             mkdir -p /tmp/gamesense
