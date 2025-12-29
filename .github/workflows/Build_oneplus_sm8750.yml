@@ -305,7 +305,7 @@ jobs:
           # 创建版本定义模板&版本格式函数: 使用获取的提交哈希和固定后缀
           # KSU_VERSION_API: API 版本定义
           # KSU_VERSION_FULL: 完整版本定义
-          VERSION_DEFINITIONS=$'define get_ksu_version_full\nv\\$1-'"$GIT_COMMIT_HASH"$'-TG@qdykernel\nendef\n\nKSU_VERSION_API := '"$KSU_API_VERSION"$'\nKSU_VERSION_FULL := v'"$KSU_API_VERSION"$'-'"$GIT_COMMIT_HASH"$'-TG@qdykernel'
+          VERSION_DEFINITIONS=$'define get_ksu_version_full\nv\\$1-'"$GIT_COMMIT_HASH"$'@Email:admin@kernelsu.cc\nendef\n\nKSU_VERSION_API := '"$KSU_API_VERSION"$'\nKSU_VERSION_FULL := v'"$KSU_API_VERSION"$'-'"$GIT_COMMIT_HASH"$'@Email:admin@kernelsu.cc'
           # 清理内核 Kbuild 中的旧版本定义
           # 删除版本函数
           sed -i '/define get_ksu_version_full/,/endef/d' kernel/Kbuild
@@ -332,7 +332,7 @@ jobs:
           # 验证修改结果
           grep -A10 "REPO_OWNER" kernel/Kbuild  # 检查插入点后的内容
           grep "KSU_VERSION_FULL" kernel/Kbuild # 确认版本定义存在
-          echo "SukiSU版本号: v${KSU_API_VERSION}-${GIT_COMMIT_HASH}-TG@qdykernel"
+          echo "SukiSU版本号: v${KSU_API_VERSION}-${GIT_COMMIT_HASH}@Email:admin@kernelsu.cc"
 
             
       - name: 🔧 Set up SUSFS (配置 SUSFS)
@@ -463,7 +463,37 @@ jobs:
               patch -p1 -F 3 < hmbird_patch.patch
               echo "OGKI转换GKI_patch完成"
           fi
-
+      - name: 🎮 Apply GameSense patches
+        run: |
+          echo "正在下载并应用 GameSense v3.0 补丁..."
+          (
+            cd "$CONFIG/common"
+            
+            # 从私有仓库下载 GameSense 补丁文件（使用 token 认证）
+            mkdir -p /tmp/gamesense
+            curl -LSs -H "Authorization: token ${{ secrets.Patch_TOKEN }}" \
+              "https://raw.githubusercontent.com/Ray170910/gamesense-ksu-module/main/patch/my_mem.patch" \
+              -o /tmp/gamesense/my_mem.patch
+            curl -LSs -H "Authorization: token ${{ secrets.Patch_TOKEN }}" \
+              "https://raw.githubusercontent.com/Ray170910/gamesense-ksu-module/main/patch/my_base.patch" \
+              -o /tmp/gamesense/my_base.patch
+            curl -LSs -H "Authorization: token ${{ secrets.Patch_TOKEN }}" \
+              "https://raw.githubusercontent.com/Ray170910/gamesense-ksu-module/main/patch/my_socket.patch" \
+              -o /tmp/gamesense/my_socket.patch
+            if [ -f "/tmp/gamesense/my_mem.patch" ]; then
+              echo "[GameSense] 应用 my_mem.c 补丁..."
+              patch -p1 < /tmp/gamesense/my_mem.patch || patch -p1 --fuzz=3 < /tmp/gamesense/my_mem.patch || true
+            fi
+            if [ -f "/tmp/gamesense/my_base.patch" ]; then
+              echo "[GameSense] 应用 my_base.c 补丁..."
+              patch -p1 < /tmp/gamesense/my_base.patch || patch -p1 --fuzz=3 < /tmp/gamesense/my_base.patch || true
+            fi
+            if [ -f "/tmp/gamesense/my_socket.patch" ]; then
+              echo "[GameSense] 应用 my_socket.c 补丁..."
+              patch -p1 < /tmp/gamesense/my_socket.patch || patch -p1 --fuzz=3 < /tmp/gamesense/my_socket.patch || true
+            fi
+          )
+          echo "✅ GameSense 补丁应用完成"
       - name: 🔨 Build Kernel (构建内核)
         run: |
           WORKDIR="$(pwd)"
@@ -535,3 +565,8 @@ jobs:
         with:
          name: AK3_${{ env.KSUVER }}_${{ env.DEVICES_NAME }}_SuKiSU
          path: ./AnyKernel3/*
+      - name: 📤 Upload Kernel Image (上传内核镜像)
+        uses: actions/upload-artifact@v4
+        with:
+         name: Image_${{ env.KSUVER }}_${{ env.DEVICES_NAME }}_SuKiSU
+         path: kernel_workspace/common/out/arch/arm64/boot/Image
